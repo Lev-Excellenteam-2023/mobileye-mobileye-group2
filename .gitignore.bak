@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+.env
+
+# Project specific
+*.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and temporary files
+*.log
+*.swp
+*.swo
+*.tmp
+
+# User-specific files
+*.DS_Store
+Thumbs.db
+
+# Compiled binaries
+*.exe
+*.dll
+*.out
+
+# Virtual environments
+venv/
+env/
+
+
+images_set/
+
+/images_with_trl/
