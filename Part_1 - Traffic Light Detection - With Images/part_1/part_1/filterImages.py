@@ -11,9 +11,10 @@ DESTINATION_DIRECTORY = 'C:/BootCamp2023/Mobily/Part_1 - Traffic Light Detection
 
 def filter_images():
     """
-    Iterate through all the josn file in the DB, and copy to destination directory
-    all the images that contain traffic-lights.
-    Image contain traffic-light if in it jxon file there is label "traffic light".
+    Iterate through all the JSON files in the database,
+    and copy every image that contains a traffic light to the destination directory.
+    An image contains a traffic light if its corresponding JSON file includes the label "traffic light".
+
     """
     # Loop through files in the source directory
     for json_filename in os.listdir(SOURCE_DIRECTORY):
