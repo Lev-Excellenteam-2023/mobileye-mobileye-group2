@@ -3,6 +3,7 @@ import json
 import argparse
 from pathlib import Path
 
+import matplotlib
 import numpy as np
 from scipy import signal as sg
 from scipy.ndimage import maximum_filter
@@ -10,7 +11,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 # if you wanna iterate over multiple files and json, the default source folder name is this.
-DEFAULT_BASE_DIR: str = 'INSERT_YOUR_DIR_WITH_PNG_AND_JSON_HERE'
+DEFAULT_BASE_DIR: str = r'C:\BootCamp2023\Mobily\Part_1 - Traffic Light Detection - With Images\myImages'
 
 # The label we wanna look for in the polygons json file
 TFL_LABEL = ['traffic light']
@@ -31,6 +32,10 @@ def find_tfl_lights(c_image: np.ndarray,
     :param kwargs: Whatever config you want to pass in here.
     :return: 4-tuple of x_red, y_red, x_green, y_green.
     """
+
+
+
+
     ### WRITE YOUR CODE HERE ###
     ### USE HELPER FUNCTIONS ###
     return [500, 700, 900], [500, 550, 600], [600, 800], [400, 300]
