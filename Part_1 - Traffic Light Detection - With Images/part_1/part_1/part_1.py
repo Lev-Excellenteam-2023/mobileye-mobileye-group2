@@ -5,10 +5,11 @@ from pathlib import Path
 
 import matplotlib
 import numpy as np
+from matplotlib import pyplot as plt, image as mpimg
 from scipy import signal as sg
 from scipy.ndimage import maximum_filter
 from PIL import Image
-import matplotlib.pyplot as plt
+import scipy.signal
 
 # if you wanna iterate over multiple files and json, the default source folder name is this.
 DEFAULT_BASE_DIR: str = r'C:\BootCamp2023\Mobily\Part_1 - Traffic Light Detection - With Images\myImages'
@@ -32,9 +33,6 @@ def find_tfl_lights(c_image: np.ndarray,
     :param kwargs: Whatever config you want to pass in here.
     :return: 4-tuple of x_red, y_red, x_green, y_green.
     """
-
-
-
 
     ### WRITE YOUR CODE HERE ###
     ### USE HELPER FUNCTIONS ###
@@ -74,6 +72,79 @@ def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, f
     image: Image = Image.open(image_path)
     # converting the image to a numpy ndarray array
     c_image: np.ndarray = np.array(image)
+
+    # //////////////////////////////////////////////////////////
+
+    value = 1 / 289
+    matrix_17x17_high = np.ones((17, 17)) * (-value)
+    matrix_17x17_high[8, 8] = 288 / 289
+
+    matrix_17x17_low = np.ones((17, 17)) * value
+
+    val = 0.999
+    mat_traffic = np.ones((15, 15)) * (val)
+    mat_traffic[0:3, :] = 0
+    mat_traffic[-3:, :] = 0
+    mat_traffic[:, 0:3] = 0
+    mat_traffic[:, -3:] = 0
+
+    print(mat_traffic)
+
+    val2 = 0.111
+    mat_traffic2 = np.ones((15, 15)) * (val2)
+    mat_traffic2[0:3, :] = 0
+    mat_traffic2[-3:, :] = 0
+    mat_traffic2[:, 0:3] = 0
+    mat_traffic2[:, -3:] = 0
+
+    img = mpimg.imread(
+        'C:/BootCamp2023/Mobily/Part_1 - Traffic Light Detection - With Images/myImages/aachen_000059_000019_leftImg8bit.png')
+
+    plt.imshow(img)
+    plt.title('Original Image')
+    plt.axis('off')
+    plt.show()
+
+
+    # filter green pixels:
+    height, width, channels = img.shape
+
+    for i in range(height):
+        for j in range(width):
+            red_value = img[i, j, 0]
+            green_value = img[i, j, 1]
+            blue_value = img[i, j, 2]
+
+            if red_value > 0.6 or green_value < 0.8:
+                img[i, j, 0] = 0
+                img[i, j, 1] = 0
+                img[i, j, 2] = 0
+
+    plt.imshow(img)
+    plt.title('white to black')
+    plt.axis('off')
+    plt.show()
+
+    # low pass:
+    red_channel = img[:, :, 0]
+    green_channel = img[:, :, 1]
+    blue_channel = img[:, :, 2]
+
+    # Perform correlation for each RGB channel using scipy.signal.convolve2d
+    correlation_red1 = scipy.signal.correlate2d(red_channel, matrix_17x17_low, mode='same', boundary='symm')
+    correlation_green1 = scipy.signal.correlate2d(green_channel, matrix_17x17_low, mode='same', boundary='symm')
+    correlation_blue1 = scipy.signal.correlate2d(blue_channel, matrix_17x17_low, mode='same', boundary='symm')
+
+    # Combine the RGB channels back into one image
+    correlation_result_low = np.stack((correlation_red1, correlation_green1, correlation_blue1), axis=-1)
+
+    plt.imshow(correlation_result_low)
+    plt.title('low')
+    plt.axis('off')
+    plt.show()
+
+    # //////////////////////////////////////////////////////////
+
 
     objects = None
     if image_json_path:
