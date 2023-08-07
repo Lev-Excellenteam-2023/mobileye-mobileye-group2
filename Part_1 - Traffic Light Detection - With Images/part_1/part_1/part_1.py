@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt, image as mpimg
-from scipy import signal as sg
+from scipy import signal as sg, ndimage
 from scipy.ndimage import maximum_filter
 from PIL import Image
 import scipy.signal
@@ -23,7 +23,7 @@ RED_Y_COORDINATES = List[int]
 GREEN_X_COORDINATES = List[int]
 GREEN_Y_COORDINATES = List[int]
 
-PATH = 'C:/BootCamp2023/Mobily/Part_1 - Traffic Light Detection - With Images/myImages/aachen_000059_000019_leftImg8bit.png'
+PATH = 'C:/BootCamp2023/Mobily/Part_1 - Traffic Light Detection - With Images/myImages/aachen_000011_000019_leftImg8bit.png'
 
 
 def find_tfl_lights(c_image: np.ndarray,
@@ -35,10 +35,39 @@ def find_tfl_lights(c_image: np.ndarray,
     :param kwargs: Whatever config you want to pass in here.
     :return: 4-tuple of x_red, y_red, x_green, y_green.
     """
+    red_lights, green_lights = process_image(PATH)
 
-    ### WRITE YOUR CODE HERE ###
-    ### USE HELPER FUNCTIONS ###
-    return [500, 700, 900], [500, 550, 600], [600, 800], [400, 300]
+    red_channel = red_lights[:, :, 0]
+    green_channel = green_lights[:, :, 1]
+
+    x_red, y_red = find_coordinates_for_tfl(red_channel)
+    x_green, y_green = find_coordinates_for_tfl(green_channel)
+    return x_red, y_red, x_green, y_green
+
+
+def find_coordinates_for_tfl(channel):
+    for row in range(channel.shape[0]):
+        for col in range(channel.shape[1]):
+            if channel[row, col] > 0:
+                channel[row, col] = 1
+
+    labeled_red, num_labels = ndimage.label(channel)
+    pixel_coordinates = [None] * num_labels
+
+    for row in range(labeled_red.shape[0]):
+        for col in range(labeled_red.shape[1]):
+            label = labeled_red[row, col]
+            if label > 0 and pixel_coordinates[label - 1] is None:
+                pixel_coordinates[label - 1] = (row, col)
+
+    print("Pixel Coordinates:")
+    for label, coordinate in enumerate(pixel_coordinates):
+        print("Label", label + 1, ":", coordinate)
+
+    x_values = np.array([coordinate[1] + 13 for coordinate in pixel_coordinates])
+    y_values = np.array([coordinate[0] + 13 for coordinate in pixel_coordinates])
+
+    return x_values, y_values
 
 
 ### GIVEN CODE TO TEST YOUR IMPLENTATION AND PLOT THE PICTURES
@@ -66,7 +95,7 @@ def show_image_and_gt(c_image: np.ndarray, objects: Optional[List[POLYGON_OBJECT
             plt.legend()
 
 
-def show_image(image: mpimg.imread, title: str='') -> None:
+def show_image(image: mpimg.imread, title: str = '') -> None:
     """
     Show image on screen (using matplotlib).
 
@@ -100,6 +129,22 @@ def low_pass(img: mpimg.imread, kernel) -> mpimg.imread:
     return np.stack((correlation_red, correlation_green, correlation_blue), axis=-1)
 
 
+def filter_red(c_image):
+    height, width, channels = c_image.shape
+
+    for i in range(height):
+        for j in range(width):
+            red_value = c_image[i, j, 0]
+            green_value = c_image[i, j, 1]
+            blue_value = c_image[i, j, 2]
+
+            if red_value < 0.9 * 255 or blue_value > 0.7 * 255:
+                c_image[i, j, 0] = 0
+                c_image[i, j, 1] = 0
+                c_image[i, j, 2] = 0
+    return c_image
+
+
 def filter_green(img):
     """
     Filter the green pixels by blackening all other pixels.
@@ -122,16 +167,21 @@ def filter_green(img):
     return img
 
 
-def process_image(path: str) -> None:
-    """
-    Find green traffic light in image.
+def process_red(c_image):
+    # process red lights:
+    c_image = filter_red(c_image)
+    show_image(c_image, 'Result')
 
-    :param path: The pass to the image to processing.
-    """
-    # load image:
-    img = mpimg.imread(path)
-    show_image(img, 'Original Image:')
+    # low pass:
+    value = 1 / 625
+    matrix_25x25 = np.ones((25, 25)) * value  # kernel
 
+    after_low_pass = low_pass(c_image, matrix_25x25)
+    show_image(after_low_pass, 'After low pass')
+    return after_low_pass
+
+
+def process_green(img):
     # filter green pixels:
     filter_green(img)
     show_image(img, 'green:')
@@ -142,8 +192,26 @@ def process_image(path: str) -> None:
     correlation_result_low = low_pass(img, matrix_17x17_low)
     show_image(correlation_result_low, 'low:')
 
+    return correlation_result_low
 
-def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, fig_num=None):
+
+def process_image(path: str):
+    """
+    Find green traffic light in image.
+
+    :param path: The pass to the image to processing.
+    """
+    # load image:
+    img = mpimg.imread(path)
+    show_image(img, 'Original Image:')
+
+    red_image = process_red(img)
+    green_image = process_green(img)
+
+    return red_image, green_image
+
+
+def test_find_tfl_lights(image_path: str, image_json_path: Optional[str] = None, fig_num=None):
     """
     Run the attention code.
     """
@@ -151,12 +219,6 @@ def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, f
     image: Image = Image.open(image_path)
     # converting the image to a numpy ndarray array
     c_image: np.ndarray = np.array(image)
-
-    # //////////////////////////////////////////////////////////
-
-    process_image(PATH)
-
-    # //////////////////////////////////////////////////////////
 
     objects = None
     if image_json_path:
@@ -167,6 +229,10 @@ def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, f
     show_image_and_gt(c_image, objects, fig_num)
 
     red_x, red_y, green_x, green_y = find_tfl_lights(c_image)
+
+    c_image: np.ndarray = np.array(image)
+    plt.imshow(c_image)
+    
     # 'ro': This specifies the format string. 'r' represents the color red, and 'o' represents circles as markers.
     plt.plot(red_x, red_y, 'ro', markersize=4)
     plt.plot(green_x, green_y, 'go', markersize=4)
