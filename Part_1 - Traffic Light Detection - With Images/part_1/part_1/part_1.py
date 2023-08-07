@@ -23,6 +23,8 @@ RED_Y_COORDINATES = List[int]
 GREEN_X_COORDINATES = List[int]
 GREEN_Y_COORDINATES = List[int]
 
+PATH = 'C:/BootCamp2023/Mobily/Part_1 - Traffic Light Detection - With Images/myImages/aachen_000059_000019_leftImg8bit.png'
+
 
 def find_tfl_lights(c_image: np.ndarray,
                     **kwargs) -> Tuple[RED_X_COORDINATES, RED_Y_COORDINATES, GREEN_X_COORDINATES, GREEN_Y_COORDINATES]:
@@ -64,49 +66,47 @@ def show_image_and_gt(c_image: np.ndarray, objects: Optional[List[POLYGON_OBJECT
             plt.legend()
 
 
-def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, fig_num=None):
+def show_image(image: mpimg.imread, title: str='') -> None:
     """
-    Run the attention code.
+    Show image on screen (using matplotlib).
+
+    :param image: The image itself.
+    :param title: Title of the image.
     """
-    # using pillow to load the image
-    image: Image = Image.open(image_path)
-    # converting the image to a numpy ndarray array
-    c_image: np.ndarray = np.array(image)
-
-    # //////////////////////////////////////////////////////////
-
-    value = 1 / 289
-    matrix_17x17_high = np.ones((17, 17)) * (-value)
-    matrix_17x17_high[8, 8] = 288 / 289
-
-    matrix_17x17_low = np.ones((17, 17)) * value
-
-    val = 0.999
-    mat_traffic = np.ones((15, 15)) * (val)
-    mat_traffic[0:3, :] = 0
-    mat_traffic[-3:, :] = 0
-    mat_traffic[:, 0:3] = 0
-    mat_traffic[:, -3:] = 0
-
-    print(mat_traffic)
-
-    val2 = 0.111
-    mat_traffic2 = np.ones((15, 15)) * (val2)
-    mat_traffic2[0:3, :] = 0
-    mat_traffic2[-3:, :] = 0
-    mat_traffic2[:, 0:3] = 0
-    mat_traffic2[:, -3:] = 0
-
-    img = mpimg.imread(
-        'C:/BootCamp2023/Mobily/Part_1 - Traffic Light Detection - With Images/myImages/aachen_000059_000019_leftImg8bit.png')
-
-    plt.imshow(img)
-    plt.title('Original Image')
+    plt.imshow(image)
+    plt.title(title)
     plt.axis('off')
     plt.show()
 
 
-    # filter green pixels:
+def low_pass(img: mpimg.imread, kernel) -> mpimg.imread:
+    """
+    Run low pass kernel on image;
+
+    :param image: The image itself.
+    :param kernel: Kernel (2d array)..
+    :return: Result of running the kernel on the image.
+    """
+    red_channel = img[:, :, 0]
+    green_channel = img[:, :, 1]
+    blue_channel = img[:, :, 2]
+
+    # Perform correlation for each RGB channel using scipy.signal.convolve2d
+    correlation_red = scipy.signal.correlate2d(red_channel, kernel, mode='same', boundary='symm')
+    correlation_green = scipy.signal.correlate2d(green_channel, kernel, mode='same', boundary='symm')
+    correlation_blue = scipy.signal.correlate2d(blue_channel, kernel, mode='same', boundary='symm')
+
+    # Combine the RGB channels back into one image
+    return np.stack((correlation_red, correlation_green, correlation_blue), axis=-1)
+
+
+def filter_green(img):
+    """
+    Filter the green pixels by blackening all other pixels.
+
+    :param img: The image.
+    :return: filtered image.
+    """
     height, width, channels = img.shape
 
     for i in range(height):
@@ -119,32 +119,44 @@ def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, f
                 img[i, j, 0] = 0
                 img[i, j, 1] = 0
                 img[i, j, 2] = 0
+    return img
 
-    plt.imshow(img)
-    plt.title('white to black')
-    plt.axis('off')
-    plt.show()
+
+def process_image(path: str) -> None:
+    """
+    Find green traffic light in image.
+
+    :param path: The pass to the image to processing.
+    """
+    # load image:
+    img = mpimg.imread(path)
+    show_image(img, 'Original Image:')
+
+    # filter green pixels:
+    filter_green(img)
+    show_image(img, 'green:')
 
     # low pass:
-    red_channel = img[:, :, 0]
-    green_channel = img[:, :, 1]
-    blue_channel = img[:, :, 2]
+    value = 1 / 289
+    matrix_17x17_low = np.ones((17, 17)) * value  # kernel
+    correlation_result_low = low_pass(img, matrix_17x17_low)
+    show_image(correlation_result_low, 'low:')
 
-    # Perform correlation for each RGB channel using scipy.signal.convolve2d
-    correlation_red1 = scipy.signal.correlate2d(red_channel, matrix_17x17_low, mode='same', boundary='symm')
-    correlation_green1 = scipy.signal.correlate2d(green_channel, matrix_17x17_low, mode='same', boundary='symm')
-    correlation_blue1 = scipy.signal.correlate2d(blue_channel, matrix_17x17_low, mode='same', boundary='symm')
 
-    # Combine the RGB channels back into one image
-    correlation_result_low = np.stack((correlation_red1, correlation_green1, correlation_blue1), axis=-1)
-
-    plt.imshow(correlation_result_low)
-    plt.title('low')
-    plt.axis('off')
-    plt.show()
+def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, fig_num=None):
+    """
+    Run the attention code.
+    """
+    # using pillow to load the image
+    image: Image = Image.open(image_path)
+    # converting the image to a numpy ndarray array
+    c_image: np.ndarray = np.array(image)
 
     # //////////////////////////////////////////////////////////
 
+    process_image(PATH)
+
+    # //////////////////////////////////////////////////////////
 
     objects = None
     if image_json_path:
