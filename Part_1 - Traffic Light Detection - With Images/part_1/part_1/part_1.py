@@ -11,7 +11,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 # if you wanna iterate over multiple files and json, the default source folder name is this.
-DEFAULT_BASE_DIR: str = r'C:\BootCamp2023\Mobily\Part_1 - Traffic Light Detection - With Images\myImages'
+DEFAULT_BASE_DIR: str = r'C:\Users\User\Desktop\exellenteam\mobileye-group2\Part_1 - Traffic Light Detection - With Images\part_1\part_1'
 
 # The label we wanna look for in the polygons json file
 TFL_LABEL = ['traffic light']
