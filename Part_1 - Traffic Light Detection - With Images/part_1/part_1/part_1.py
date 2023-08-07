@@ -3,15 +3,16 @@ import json
 import argparse
 from pathlib import Path
 
-import matplotlib
 import numpy as np
 from scipy import signal as sg
+import scipy.ndimage as ndimage
 from scipy.ndimage import maximum_filter
 from PIL import Image
 import matplotlib.pyplot as plt
+#import matplotlib.image as mpimg
 
 # if you wanna iterate over multiple files and json, the default source folder name is this.
-DEFAULT_BASE_DIR: str = r'C:\Users\User\Desktop\exellenteam\mobileye-group2\Part_1 - Traffic Light Detection - With Images\part_1\part_1'
+DEFAULT_BASE_DIR: str = 'C:/Users/User/Desktop/exellenteam/mobileye-group2/Part_1 - Traffic Light Detection - With Images/part_1/part_1'
 
 # The label we wanna look for in the polygons json file
 TFL_LABEL = ['traffic light']
@@ -23,8 +24,8 @@ GREEN_X_COORDINATES = List[int]
 GREEN_Y_COORDINATES = List[int]
 
 
-def find_tfl_lights(c_image: np.ndarray,
-                    **kwargs) -> Tuple[RED_X_COORDINATES, RED_Y_COORDINATES, GREEN_X_COORDINATES, GREEN_Y_COORDINATES]:
+def find_tfl_lights1(c_image: np.ndarray,
+                    correlation_red) -> Tuple[RED_X_COORDINATES, RED_Y_COORDINATES, GREEN_X_COORDINATES, GREEN_Y_COORDINATES]:
     """
     Detect candidates for TFL lights. Use c_image, kwargs and you imagination to implement.
 
@@ -32,13 +33,28 @@ def find_tfl_lights(c_image: np.ndarray,
     :param kwargs: Whatever config you want to pass in here.
     :return: 4-tuple of x_red, y_red, x_green, y_green.
     """
-
-
-
-
     ### WRITE YOUR CODE HERE ###
     ### USE HELPER FUNCTIONS ###
-    return [500, 700, 900], [500, 550, 600], [600, 800], [400, 300]
+
+    for row in range(correlation_red.shape[0]):
+        for col in range(correlation_red.shape[1]):
+            if correlation_red[row, col] > 0:
+                correlation_red[row, col] = 1
+
+    labeled_red, num_labels = ndimage.label(correlation_red)
+    pixel_coordinates = [None] * num_labels
+
+    for row in range(labeled_red.shape[0]):
+        for col in range(labeled_red.shape[1]):
+            label = labeled_red[row, col]
+            if label > 0 and pixel_coordinates[label - 1] is None:
+                pixel_coordinates[label - 1] = (row, col)
+
+    x_values = np.array([coordinate[1]+13 for coordinate in pixel_coordinates])
+    y_values = np.array([coordinate[0]+13 for coordinate in pixel_coordinates])
+
+    # return [500, 700, 900], [500, 550, 600], [600, 800], [400, 300]
+    return x_values, y_values, [600, 800], [400, 300]
 
 
 ### GIVEN CODE TO TEST YOUR IMPLENTATION AND PLOT THE PICTURES
@@ -75,6 +91,70 @@ def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, f
     # converting the image to a numpy ndarray array
     c_image: np.ndarray = np.array(image)
 
+    # my code---------------------------------------------------------
+    plt.imshow(c_image)
+    plt.show()
+
+    height, width, channels = c_image.shape
+
+    for i in range(height):
+        for j in range(width):
+            red_value = c_image[i, j, 0]
+            green_value = c_image[i, j, 1]
+            blue_value = c_image[i, j, 2]
+
+            if red_value < 0.9*255 or blue_value > 0.7*255:
+                c_image[i, j, 0] = 0
+                c_image[i, j, 1] = 0
+                c_image[i, j, 2] = 0
+
+    plt.imshow(c_image)
+    plt.title('Result')
+    plt.axis('off')
+    plt.show()
+
+    red_channel = c_image[:, :, 0] / 255.0
+    green_channel = c_image[:, :, 1] / 255.0
+    blue_channel = c_image[:, :, 2] / 255.0
+
+    value = 1 / 625
+    matrix_25x25 = np.ones((25, 25)) * value
+    kernel = matrix_25x25
+
+    # Perform correlation for each RGB channel using scipy.signal.convolve2d
+    correlation_red = sg.correlate2d(red_channel, kernel, mode='same', boundary='symm')
+    correlation_green = sg.correlate2d(green_channel, kernel, mode='same', boundary='symm')
+    correlation_blue = sg.correlate2d(blue_channel, kernel, mode='same', boundary='symm')
+
+    # Combine the RGB channels back into one image
+    after_low_pass = np.stack((correlation_red, correlation_green, correlation_blue), axis=-1)
+
+    plt.imshow(after_low_pass)
+    plt.title('After low pass')
+    plt.axis('off')
+    plt.show()
+
+    for row in range(correlation_red.shape[0]):
+        for col in range(correlation_red.shape[1]):
+            if correlation_red[row, col] > 0:
+                correlation_red[row, col] = 1
+
+    labeled_red, num_labels = ndimage.label(correlation_red)
+    pixel_coordinates = [None] * num_labels
+
+    for row in range(labeled_red.shape[0]):
+        for col in range(labeled_red.shape[1]):
+            label = labeled_red[row, col]
+            if label > 0 and pixel_coordinates[label - 1] is None:
+                pixel_coordinates[label - 1] = (row, col)
+
+    print("Pixel Coordinates:")
+    for label, coordinate in enumerate(pixel_coordinates):
+        print("Label", label + 1, ":", coordinate)
+
+    c_image: np.ndarray = np.array(image)
+    # ----------------------------------------------------------------------------
+
     objects = None
     if image_json_path:
         image_json = json.load(Path(image_json_path).open())
@@ -83,10 +163,10 @@ def test_find_tfl_lights(image_path: str, image_json_path: Optional[str]=None, f
 
     show_image_and_gt(c_image, objects, fig_num)
 
-    red_x, red_y, green_x, green_y = find_tfl_lights(c_image)
+    red_x, red_y, green_x, green_y = find_tfl_lights1(c_image, correlation_red)
     # 'ro': This specifies the format string. 'r' represents the color red, and 'o' represents circles as markers.
-    plt.plot(red_x, red_y, 'ro', markersize=4)
-    plt.plot(green_x, green_y, 'go', markersize=4)
+    plt.plot(red_x, red_y, 'rx', markersize=6)
+    plt.plot(green_x, green_y, 'g+', markersize=8)
 
 
 def main(argv=None):
