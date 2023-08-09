@@ -55,3 +55,4 @@ def get_images_metadata(csv_path: Path,
     for res_type in [IMAG_PATH, GTIM_PATH, JSON_PATH]:
         df[res_type] = [(csv_dir / x).resolve().as_posix() for x in df[res_type]]
     return df
+

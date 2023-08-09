@@ -10,10 +10,12 @@ from matplotlib.axes import Axes
 
 # Internal imports... Should not fail
 from consts import IMAG_PATH, JSON_PATH, NAME, SEQ_IMAG, X, Y, COLOR, RED, GRN, DATA_DIR, TFLS_CSV, CSV_OUTPUT, \
-    SEQ, CROP_DIR, CROP_CSV_NAME, ATTENTION_RESULT, ATTENTION_CSV_NAME, ZOOM, RELEVANT_IMAGE_PATH, COL, ATTENTION_PATH
+    SEQ, CROP_DIR, CROP_CSV_NAME, ATTENTION_RESULT, ATTENTION_CSV_NAME, ZOOM, RELEVANT_IMAGE_PATH, COL, ATTENTION_PATH, \
+    CSV_INPUT
 from misc_goodies import show_image_and_gt
 from data_utils import get_images_metadata
 from crops_creator import create_crops
+import utils as ut
 
 import tqdm  # for the progress bar
 import pandas as pd
@@ -39,16 +41,23 @@ def find_tfl_lights(c_image: np.ndarray, **kwargs) -> Dict[str, Any]:
     # Note there are no explicit strings in the code-base. ALWAYS USE A CONSTANT VARIABLE INSTEAD!.
     """
 
-    # Okay... Here's an example of what this function should return. You will write your own of course
-    x_red: List[float] = (np.arange(-100, 100, 20) + c_image.shape[1] / 2).tolist()
-    y_red: List[float] = [c_image.shape[0] / 2 - 120] * len(x_red)
-    x_green: List[float] = x_red
-    y_green: List[float] = [c_image.shape[0] / 2 - 100] * len(x_red)
+    # # Okay... Here's an example of what this function should return. You will write your own of course
+    # x_red: List[float] = (np.arange(-100, 100, 20) + c_image.shape[1] / 2).tolist()
+    # y_red: List[float] = [c_image.shape[0] / 2 - 120] * len(x_red)
+    # x_green: List[float] = x_red
+    # y_green: List[float] = [c_image.shape[0] / 2 - 100] * len(x_red)
 
     if kwargs.get('debug', False):
         # This is here just so you know you can do it... Look at parse_arguments() for details
         if np.random.rand() > kwargs.get('some_threshold', 0) / 45:
             print("You're lucky, aren't you???")
+    red_lights_image, green_lights_image = ut.process_image(c_image)
+
+    red_channel = red_lights_image[:, :, 0]
+    green_channel = green_lights_image[:, :, 1]
+
+    x_red, y_red = ut.find_coordinates_for_tfl(red_channel)
+    x_green, y_green = ut.find_coordinates_for_tfl(green_channel)
 
     return {X: x_red + x_green,
             Y: y_red + y_green,
@@ -99,8 +108,8 @@ def test_find_tfl_lights(row: Series, args: Namespace) -> DataFrame:
         plt.subplot(211, sharex=ax, sharey=ax)
         plt.imshow(image)
         plt.title('Original image.. Always try to compare your output to it')
-        plt.plot(tfl_x[is_red], tfl_y[is_red], 'rx', markersize=4)
-        plt.plot(tfl_x[~is_red], tfl_y[~is_red], 'g+', markersize=4)
+        plt.plot(tfl_x[is_red], tfl_y[is_red], 'rx', markersize=8)
+        plt.plot(tfl_x[~is_red], tfl_y[~is_red], 'g+', markersize=10)
         # Now let's convolve. Cannot convolve a 3D image with a 2D kernel, so I create a 2D image
         # Note: This image is useless for you, so you solve it yourself
         useless_image: np.ndarray = np.std(image, axis=2)  # No. You don't want this line in your code-base
@@ -130,7 +139,7 @@ def prepare_list(in_csv_file: Path, args: Namespace) -> DataFrame:
     csv_list: DataFrame = get_images_metadata(in_csv_file,
                                               max_count=args.count,
                                               take_specific=args.image)
-    return pd.concat([pd.DataFrame(columns=CSV_OUTPUT), csv_list], ignore_index=True)
+    return pd.concat([pd.DataFrame(columns=CSV_INPUT), csv_list], ignore_index=True)
 
 
 def run_on_list(meta_table: pd.DataFrame, func: callable, args: Namespace) -> pd.DataFrame:

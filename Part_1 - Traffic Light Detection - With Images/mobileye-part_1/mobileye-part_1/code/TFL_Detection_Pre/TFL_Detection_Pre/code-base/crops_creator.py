@@ -4,9 +4,29 @@ from consts import CROP_DIR, CROP_RESULT, SEQ, IS_TRUE, IGNOR, CROP_PATH, X0, X1
     GTIM_PATH
 
 from pandas import DataFrame
+import cv2
+import numpy as np
 
 
-def make_crop(*args, **kwargs):
+def make_big_crop(image, x, y, color):
+
+    patch_width = 70
+    patch_height = 210
+
+    if color == 'r':
+        patch_top_left_x = x - 20
+        patch_top_left_y = y - 20
+    else:
+        patch_top_left_x = x - 20
+        patch_top_left_y = y - 140 if y - 140 > 0 else 0
+
+    big_crop = image[patch_top_left_y:patch_top_left_y + patch_height,
+                      patch_top_left_x:patch_top_left_x + patch_width, :]
+
+    return big_crop
+
+
+def make_crop(image, x, y, color):
     """
     The function that creates the crops from the image.
     Your return values from here should be the coordinates of the crops in this format (x0, x1, y0, y1, crop content):
@@ -15,7 +35,36 @@ def make_crop(*args, **kwargs):
     'y0'  The smaller y value (the lower corner)
     'y1'  The bigger y value (the higher corner)
     """
-    return 1, 2, 3, 4, 'crop_data'
+
+
+    big_crop = make_big_crop(image, x, y, color)
+    image = cv2.cvtColor(big_crop, cv2.COLOR_RGB2BGR)
+
+    # Convert the image to grayscale for edge detection
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+
+    # Perform edge detection using Canny
+    edges = cv2.Canny(blurred, threshold1=30, threshold2=70)
+
+    # Apply Hough Circle Transform
+    circles = cv2.HoughCircles(edges, cv2.HOUGH_GRADIENT, dp=1, minDist=50, param1=100, param2=30, minRadius=10,
+                               maxRadius=50)
+
+    diameter = circles[0][2] * 2
+    crop_width = int(diameter * 1.4)
+    crop_height = crop_width * 3
+
+    if color == 'r':
+        crop_top_left_x = x - 20
+        crop_top_left_y = y - 20
+    else:
+        crop_top_left_x = x - 20
+        crop_top_left_y = y - crop_width * 2 if y - crop_width * 2 > 0 else 0  # if the tfl go up of the image: y=0
+
+    return crop_top_left_x, crop_top_left_x + crop_width, crop_top_left_y, crop_top_left_y + crop_height, 'crop_data'
 
 
 def check_crop(*args, **kwargs):
@@ -37,6 +86,9 @@ def create_crops(df: DataFrame) -> DataFrame:
     # All crops should be the same size or smaller!!!
 
     # creates a folder for you to save the crops in, recommended not must
+
+
+
     if not CROP_DIR.exists():
         CROP_DIR.mkdir()
 
@@ -53,6 +105,7 @@ def create_crops(df: DataFrame) -> DataFrame:
 
         # example code:
         # ******* rewrite ONLY FROM HERE *******
+
         x0, x1, y0, y1, crop = make_crop(df[X], df[Y], 'and_everything_else_you_need_here (and you need)')
         result_template[X0], result_template[X1], result_template[Y0], result_template[Y1] = x0, x1, y0, y1
         crop_path: str = '/data/crops/my_crop_unique_name.probably_containing_the original_image_name+somthing_unique'
