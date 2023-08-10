@@ -22,7 +22,7 @@ def plot_rects(x, y, axes=None, *args, **kwargs):
     y_coords = all_y.ravel()
     if axes is None:
         axes = plt.gca()
-    axes.plot(x_coords, y_coords, *args, **kwargs)
+    axes.plot(x_coords, y_coords, color='red', lw=2 * args, **kwargs)
 
 
 class SafeConnect:
@@ -116,8 +116,8 @@ class IHist:
         self.figure = plt.figure(self.figure.number if self.figure else None)
         plt.clf()
         self.plot_ax = plt.gca()
-        self.t_hand = self.plot_ax.plot(mid_bin(t_bins), t_count, 'g')[0]
-        self.f_hand = self.plot_ax.plot(mid_bin(f_bins), f_count, 'r')[0]
+        self.t_hand = self.plot_ax.plot(mid_bin(t_bins), t_count, 'r--')[0]  # Change line style to dashed red
+        self.f_hand = self.plot_ax.plot(mid_bin(f_bins), f_count, 'b-.')[0]  # Change line style to dash-dot blue
         self.set_line_widths()
 
         self.marker = None
@@ -204,6 +204,8 @@ class IHist:
         self.callback(filtered_data, self, [b0, b1])
         _ = event  # Make pylint happy
 
+        print(f"Selected data: {len(filtered_data)} events, bins: {self.bins}")
+
     def on_key_press(self, event: KeyEvent):
         """
         If spacebar is hit, toggle the what-to-choose-from.
@@ -259,7 +261,8 @@ class GridPresenter:
         n_imgs = len(data[GridPresenter.IMAGE])
         self.last_page = n_imgs // (nrow * ncol)
         self.all_images = np.stack([v for v in self.data[GridPresenter.IMAGE]], axis=0) if n_imgs > 0 else np.array([])
-        self.mapping = np.zeros_like(self.all_images, dtype=np.int) + np.arange(len(self.all_images))[:, np.newaxis, np.newaxis, np.newaxis]
+        self.mapping = np.zeros_like(self.all_images, dtype=np.int) + np.arange(len(self.all_images))[:, np.newaxis,
+                                                                      np.newaxis, np.newaxis]
         self.grid = None
         self.mapg = None
         self.callback = callback
@@ -298,7 +301,7 @@ class GridPresenter:
             self.plot_ax = plt.gca()
         plot_ax = self.plot_ax
         plot_ax.cla()
-        plot_ax.imshow(self.grid)
+        plot_ax.imshow(self.grid, aspect='auto')  # Change aspect ratio of images
         SafeConnect('button_press_event', self.on_mouse_down, self.plot_ax)
         SafeConnect('key_press_event', self.on_key_press, self.plot_ax)
         plot_ax.title.set_text(f"Name: {self.name}: Page {self.page} of {self.last_page + 1}")
@@ -321,6 +324,7 @@ class GridPresenter:
             offset = self.mapg[int(y), int(x)]
             text = [f'{k}: {self.data[k][offset]}' for k in sorted(list(set(self.data.keys()) - {GridPresenter.IMAGE}))]
             print(f"Clicked on image {offset}")
+            print(f"Additional info: Score = {self.data['score'][offset]}, Is True = {self.data['is_true'][offset]}")
             print('\n'.join(text))
 
             if self.callback is not None:
@@ -424,11 +428,13 @@ class NNResultExaminer:
         plt.figure(None if self.roc_fig is None else self.roc_fig.number)
         plt.clf()
         self.roc_fig = plt.gcf()
-        plt.plot(acc_f, acc_t, '.-')
+        plt.plot(acc_f, acc_t, 'go-')
         plt.title(f"ROC curve of {self.name}")
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
+        plt.xlabel('False Positive Rate (FPR)')
+        plt.ylabel('True Positive Rate (TPR)')
         plt.axis([0, 1, 0, 1])
+        plt.xlim(0, 1.1)  # Adjust x-axis limit
+        plt.ylim(0, 1.1)  # Adjust y-axis limit
         plt.grid(True)
         plt.plot(0, 1, 'ro', mfc='none', ms=15)
         plt.plot(0, 1, 'r+', mfc='none', ms=15)
@@ -439,7 +445,7 @@ class NNResultExaminer:
         grid_dict = {k: filtered_data[k].values for k in filtered_data.keys()}
         grid_dict[GridPresenter.IMAGE] = [np.array(Image.open(fn)) for fn in filtered_data[self.crop_filename_col]]
         self.grid_dict = grid_dict
-        gp = GridPresenter(self.grid_dict, self.grid_presenter_callback, self.name)
+        gp = GridPresenter(self.grid_dict, self.grid_presenter_callback, self.name, nrow=3, ncol=4)
         _ = plt.figure(f"Grid: {self.name}, {bins[0]}-{bins[1]}") if self.grid_fig is None else self.grid_fig
         gp.show(plt.subplot(111))
         _ = nne
