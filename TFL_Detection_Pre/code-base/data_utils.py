@@ -116,11 +116,15 @@ class MyNeuralNetworkBase(nn.Module):
     def set_net_and_loss(self):
         self.layers = nn.Sequential(
             nn.Conv2d(self.num_in_channels, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
+
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
+
             nn.Flatten(),
             nn.Linear(64 * (self.w // 4) * (self.h // 4), 128),
             nn.ReLU(),

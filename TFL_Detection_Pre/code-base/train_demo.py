@@ -66,7 +66,7 @@ def run_one_test_epoch(model: MyNeuralNetworkBase, dataset: TrafficLightDataSet)
     :param dataset: Data to work on
     :return: loss, scores
     """
-    test_loader = DataLoader(dataset, batch_size=16)
+    test_loader = DataLoader(dataset, batch_size=8)
     loss_func = model.loss_func
 
     acc_loss = 0
@@ -134,7 +134,7 @@ def train_a_model(model: MyNeuralNetworkBase,
     return model_path
 
 
-def go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=5):
+def go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=8):
     """
     This is like a "main" to start with. It will train the model, then examine its outputs using all the candies you got
     # TODO: add doc?
@@ -216,7 +216,7 @@ def main():
     model_name = 'my_model_final_2'
     train_dataset = TrafficLightDataSet(base_dir, full_images_dir, is_train=True)
     test_dataset = TrafficLightDataSet(base_dir, full_images_dir, is_train=False)
-    trained_model_path = go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=5)
+    trained_model_path = go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=8)
     examine_my_results(base_dir, full_images_dir, trained_model_path, test_dataset)
 
 
