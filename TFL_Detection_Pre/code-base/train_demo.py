@@ -97,7 +97,7 @@ def train_a_model(model: MyNeuralNetworkBase,
                   train_dataset: TrafficLightDataSet,
                   test_dataset: TrafficLightDataSet,
                   log_dir: str,
-                  num_epochs: int = 20,
+                  num_epochs: int = 10,
                   ) -> str:
     """
     Do the train loop. Write intermediate results to TB and trained files.
@@ -134,7 +134,7 @@ def train_a_model(model: MyNeuralNetworkBase,
     return model_path
 
 
-def go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=20):
+def go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=5):
     """
     This is like a "main" to start with. It will train the model, then examine its outputs using all the candies you got
     # TODO: add doc?
@@ -216,7 +216,7 @@ def main():
     model_name = 'my_model_final_2'
     train_dataset = TrafficLightDataSet(base_dir, full_images_dir, is_train=True)
     test_dataset = TrafficLightDataSet(base_dir, full_images_dir, is_train=False)
-    trained_model_path = go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=20)
+    trained_model_path = go_train(base_dir, model_name, train_dataset, test_dataset, num_epochs=5)
     examine_my_results(base_dir, full_images_dir, trained_model_path, test_dataset)
 
 

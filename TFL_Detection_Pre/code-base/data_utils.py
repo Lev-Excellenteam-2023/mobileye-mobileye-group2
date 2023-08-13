@@ -1,20 +1,19 @@
-import contextlib
 import os
-from pathlib import Path
-import pickle
 import sys
-
+import pickle
 import numpy as np
 import pandas as pd
 import torch
-from PIL import Image
-from matplotlib import pyplot as plt
 from torch import nn
 from torch.utils.data import Dataset
-
+from PIL import Image
+import consts as C
+import contextlib
+from contextlib import contextmanager
+from pathlib import Path
+from matplotlib import pyplot as plt
 from consts import SEQ_IMAG, NAME, IMAG_PATH, GTIM_PATH, JSON_PATH, TRAIN_TEST_VAL, TRAIN, TEST, VALIDATION
 from mpl_goodies import plot_rects
-import consts as C
 
 
 @contextlib.contextmanager
@@ -25,6 +24,7 @@ def temp_seed(seed):
         yield
     finally:
         np.random.set_state(state)
+
 
 # TODO: work on this
 pd.set_option('display.width', 200, 'display.max_rows', 200,
@@ -41,7 +41,6 @@ class TrafficLightDataSet(Dataset):
     IMAGE = 'image'
     PREDS = 'preds'
     SCORE = 'score'  # Not really used by this class
-
 
     # noinspection PyTypeChecker
     def __init__(self, base_dir, full_image_dir=None, is_train=True, **kwargs):
@@ -102,25 +101,31 @@ class TrafficLightDataSet(Dataset):
 
 class MyNeuralNetworkBase(nn.Module):
     def __init__(self, **kwargs):
+        super(MyNeuralNetworkBase, self).__init__()
         self.w = kwargs.get('w', C.DEFAULT_CROPS_W)
         self.h = kwargs.get('h', C.DEFAULT_CROPS_H)
         self.num_in_channels = kwargs.get('num_in_channels', 3)  # RGB
-        super(MyNeuralNetworkBase, self).__init__()
         self.name = kwargs.get('name', 'my_first_net')
         self.layers = None
         self.loss_func = None
         self.net = None
+        self.learning_rate = kwargs.get('learning_rate', 0.001)
+        self.batch_size = kwargs.get('batch_size', 32)
         self.set_net_and_loss()
 
     def set_net_and_loss(self):
-        # Feel free to inherit this class and override this function.
-        # Here are some totally useless layers. See what YOU need!
-        self.layers = (nn.Conv2d(self.num_in_channels, 5, (1, 1)),
-                       nn.ReLU(),
-                       nn.Flatten(1, -1),
-                       nn.Linear(5 * self.w * self.h, 1),
-                       )
-
+        self.layers = nn.Sequential(
+            nn.Conv2d(self.num_in_channels, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Flatten(),
+            nn.Linear(64 * (self.w // 4) * (self.h // 4), 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+        )
         # This is the recommended loss:
         self.loss_func = nn.BCEWithLogitsLoss
 
@@ -135,6 +140,9 @@ class MyNeuralNetworkBase(nn.Module):
                 all_shapes.append(f"{l._get_name()} --> {x1.detach().numpy().shape}")
 
         self.net = nn.Sequential(*self.layers)
+
+        # Define optimizer with adjusted learning rate
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.learning_rate)
 
     def forward(self, x):
         # This is called both during train, and in evaluation
@@ -227,5 +235,8 @@ class ModelManager:
         :param suffix: Like iteration number or so
         :return: The filename
         """
-        # TODO: switch to pathLib
-        return os.path.join(log_dir, f'model{suffix}.pkl')
+        ## TODO: switch to pathLib
+        # return os.path.join(log_dir, f'model{suffix}.pkl')
+        log_path = Path(log_dir)
+        filename = f'model{suffix}.pkl'
+        return log_path / filename
