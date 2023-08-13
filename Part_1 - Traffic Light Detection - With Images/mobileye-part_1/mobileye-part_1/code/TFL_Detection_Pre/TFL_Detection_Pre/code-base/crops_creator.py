@@ -1,7 +1,7 @@
 from typing import Dict, Any
 
 from consts import CROP_DIR, CROP_RESULT, SEQ, IS_TRUE, IGNOR, CROP_PATH, X0, X1, Y0, Y1, COLOR, SEQ_IMAG, COL, X, Y, \
-    GTIM_PATH, IMAG_PATH
+    GTIM_PATH, IMAG_PATH, JSON_PATH
 
 from pandas import DataFrame
 import cv2
@@ -79,14 +79,33 @@ def make_crop(image_path, x, y, color):
         return x + 13, x - 13, y + 52, y - 26, 'crop'
 
 
-def check_crop(*args, **kwargs):
+def check_crop(json_path, x0, x1, y0, y1):
     """
     Here you check if your crop contains a traffic light or not.
     Try using the ground truth to do that (Hint: easier than you think for the simple cases, and if you found a hard
     one, just ignore it for now :). )
     """
+    traffic_light_polygons = [item["polygon"] for item in json_path if item["label"] == "traffic light"]
 
-    return True, True
+    for tfl_polygon in traffic_light_polygons:
+        x_min = min(x for x, y in tfl_polygon)
+        x_max = max(x for x, y in tfl_polygon)
+        y_min = min(y for x, y in tfl_polygon)
+        y_max = max(y for x, y in tfl_polygon)
+
+        total_points = (x_max - x_min) * (y_max - y_min)
+        points_inside = 0
+
+        for x in range(x_min, x_max+1):
+            for y in range(y_min, y_max+1):
+                if x1 <= x <= x0 and y0 <= y <= y1:
+                    points_inside += 1
+
+        overlap_percentage = (points_inside / total_points) * 100
+        if overlap_percentage >= 60:
+            return True, False
+
+    return False, False
 
 
 def create_crops(df: DataFrame) -> DataFrame:
@@ -99,8 +118,6 @@ def create_crops(df: DataFrame) -> DataFrame:
     # All crops should be the same size or smaller!!!
 
     # creates a folder for you to save the crops in, recommended not must
-
-
 
     if not CROP_DIR.exists():
         CROP_DIR.mkdir()
@@ -137,14 +154,12 @@ def create_crops(df: DataFrame) -> DataFrame:
             # Show the plot
             plt.show()
 
-
             result_template[X0], result_template[X1], result_template[Y0], result_template[Y1] = x0, x1, y0, y1
             crop_path: str = '/data/crops/my_crop_unique_name.probably_containing_the original_image_name+somthing_unique'
             # crop.save(CROP_DIR / crop_path)
             result_template[CROP_PATH] = crop_path
-            result_template[IS_TRUE], result_template[IGNOR] = check_crop(df[GTIM_PATH],
-                                                                        crop,
-                                                                        'everything_else_you_need_here')
+            result_template[IS_TRUE], result_template[IGNOR] = check_crop(df[JSON_PATH],
+                                                                          x0, x1, y0, y1)
             # ******* TO HERE *******
 
             # added to current row to the result DataFrame that will serve you as the input to part 2 B).
